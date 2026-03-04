@@ -1,35 +1,44 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { COLORS, FONTS } from "./constants";
+import { useScrollPosition, useSectionVisibility } from "./hooks";
+import { Navbar, Footer } from "./components/layout";
+import { GrainOverlay, FloatingOrbs } from "./components/ui";
+import {
+  HeroSection,
+  ProblemSection,
+  HowItWorksSection,
+  DestinationQuizSection,
+  TestimonialsSection,
+  SoloTravelStatsSection,
+  SafetySection,
+  WaitlistSection,
+} from "./components/sections";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const scrollY = useScrollPosition();
+  const isVisible = useSectionVisibility(0.15);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div style={{
+      background: COLORS.bgPrimary, color: COLORS.textPrimary,
+      minHeight: "100vh", fontFamily: FONTS.body,
+      overflowX: "hidden", position: "relative",
+    }}>
+      <GrainOverlay />
+      <FloatingOrbs />
+      <Navbar scrollY={scrollY} />
+
+      <HeroSection />
+      <ProblemSection isVisible={isVisible("problem")} />
+      <HowItWorksSection isVisible={isVisible("how-it-works")} />
+      <DestinationQuizSection isVisible={isVisible("quiz")} />
+      <TestimonialsSection isVisible={isVisible("testimonials")} />
+      <SoloTravelStatsSection isVisible={isVisible("why-solo")} />
+      <SafetySection isVisible={isVisible("safety")} />
+      <WaitlistSection isVisible={isVisible("waitlist")} />
+
+      <Footer />
+    </div>
+  );
 }
 
-export default App
+export default App;
