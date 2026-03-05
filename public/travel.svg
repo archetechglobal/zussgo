@@ -1,0 +1,12 @@
+const ZussGoLogo = () => (
+  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* A stylized 'Z' that looks like a winding mountain road or a flight path */}
+    <path d="M10 30L30 10M10 10H30L10 30H30" stroke="url(#paint0_linear)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    <defs>
+      <linearGradient id="paint0_linear" x1="10" y1="10" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#7B2FF7" />
+        <stop offset="1" stopColor="#F15A24" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
