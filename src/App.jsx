@@ -1,4 +1,5 @@
 import { COLORS, FONTS } from "./constants";
+import { useEffect } from "react";
 import { useScrollPosition, useSectionVisibility } from "./hooks";
 import { Navbar, Footer } from "./components/layout";
 import { GrainOverlay, FloatingOrbs } from "./components/ui";
@@ -16,13 +17,23 @@ import {
 function App() {
   const scrollY = useScrollPosition();
   const isVisible = useSectionVisibility(0.15);
-
+  useEffect(() => {
+    // Trigger this the moment the tab opens
+    fetch("https://zussgo-backend.onrender.com/api/admin/waitlist").catch(
+      () => {},
+    );
+  }, []);
   return (
-    <div style={{
-      background: COLORS.bgPrimary, color: COLORS.textPrimary,
-      minHeight: "100vh", fontFamily: FONTS.body,
-      overflowX: "hidden", position: "relative",
-    }}>
+    <div
+      style={{
+        background: COLORS.bgPrimary,
+        color: COLORS.textPrimary,
+        minHeight: "100vh",
+        fontFamily: FONTS.body,
+        overflowX: "hidden",
+        position: "relative",
+      }}
+    >
       <GrainOverlay />
       <FloatingOrbs />
       <Navbar scrollY={scrollY} />
