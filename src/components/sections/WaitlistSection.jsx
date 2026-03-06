@@ -1,11 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { COLORS, FONTS } from "../../constants";
 import { AnimatedSection, ButtonPrimary, ButtonSecondary } from "../ui";
-import {
-  isValidEmail,
-  generateWaitlistPosition,
-  shareOrCopy,
-} from "../../utils";
+import { isValidEmail, shareOrCopy } from "../../utils";
+import confetti from "canvas-confetti";
 
 export default function WaitlistSection({ isVisible }) {
   const [email, setEmail] = useState("");
@@ -13,20 +10,6 @@ export default function WaitlistSection({ isVisible }) {
   const [waitlistPos, setWaitlistPos] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(""); // New: Better UX feedback
-
-  // Handle long wait times for Render Cold Starts
-  useEffect(() => {
-    let timer;
-    if (isLoading) {
-      timer = setTimeout(() => {
-        setStatusMessage("Waking up our travel servers... hang tight! ✈️");
-      }, 4000); // After 4 seconds, show this message
-    } else {
-      setStatusMessage("");
-    }
-    return () => clearTimeout(timer);
-  }, [isLoading]);
 
   const handleSubmit = async () => {
     setError("");
@@ -39,12 +22,10 @@ export default function WaitlistSection({ isVisible }) {
 
     try {
       const response = await fetch(
-        "https://zussgo-backend.onrender.com/api/waitlist",
+        "https://tkzdwtszdefpfonjlwrw.supabase.co/functions/v1/join-waitlist",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email.toLowerCase() }),
         },
       );
@@ -52,17 +33,22 @@ export default function WaitlistSection({ isVisible }) {
       const data = await response.json();
 
       if (response.ok) {
-        setWaitlistPos(data.count || generateWaitlistPosition());
+        setWaitlistPos(data.count);
         setSubmitted(true);
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#7B2FF7", "#F15A24", "#ffffff"],
+        });
+      } else if (response.status === 409) {
+        // This triggers the specialized UI block below
+        setError("ALREADY_JOINED");
       } else {
-        // Handle specific duplicate error or server error
-        setError(data.message || "Something went wrong. Please try again.");
+        setError(data.message || "Something went wrong.");
       }
     } catch (err) {
-      setError(
-        "Connection took too long. Our server is just waking up—please try clicking again!",
-      );
-      console.error("Connection Error:", err);
+      setError("Connection error. Please try again!");
     } finally {
       setIsLoading(false);
     }
@@ -129,7 +115,7 @@ export default function WaitlistSection({ isVisible }) {
                 onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
                 style={{
                   background: COLORS.bgInput,
-                  border: `2px solid ${error ? COLORS.coral : "rgba(255,255,255,0.1)"}`,
+                  border: `2px solid ${error && error !== "ALREADY_JOINED" ? COLORS.coral : "rgba(255,255,255,0.1)"}`,
                   borderRadius: "16px",
                   padding: "18px 24px",
                   color: COLORS.textPrimary,
@@ -139,64 +125,65 @@ export default function WaitlistSection({ isVisible }) {
                   maxWidth: "400px",
                   outline: "none",
                   transition: "all 0.3s ease",
-                  cursor: isLoading ? "not-allowed" : "text",
                 }}
               />
               <ButtonPrimary
                 onClick={handleSubmit}
                 disabled={isLoading}
-                style={{
-                  padding: "18px 36px",
-                  opacity: isLoading ? 0.7 : 1,
-                  cursor: isLoading ? "wait" : "pointer",
-                }}
+                style={{ padding: "18px 36px" }}
               >
                 {isLoading ? "Joining..." : "Join the Waitlist 🚀"}
               </ButtonPrimary>
             </div>
 
-            {/* Success/Wait Message */}
-            {statusMessage && (
-              <p
-                style={{
-                  marginTop: "12px",
-                  fontSize: "0.9rem",
-                  color: COLORS.violet,
-                  fontWeight: 500,
-                }}
-              >
-                {statusMessage}
-              </p>
-            )}
-
-            {/* Error Message */}
-            {error && error.includes("already") && (
+            {/* RESTORED: Glowing Already Joined UI */}
+            {error === "ALREADY_JOINED" && (
               <div
                 style={{
-                  marginTop: "20px",
-                  padding: "16px",
-                  background: "rgba(123, 47, 247, 0.1)",
+                  marginTop: "30px",
+                  padding: "20px",
+                  background: "rgba(123, 47, 247, 0.08)",
                   border: `1px solid ${COLORS.violet}`,
-                  borderRadius: "12px",
+                  borderRadius: "16px",
                   display: "flex",
                   alignItems: "center",
-                  gap: "12px",
+                  gap: "15px",
                   justifyContent: "center",
-                  animation: "fadeIn 0.5s ease",
+                  animation: "fadeIn 0.6s ease",
+                  boxShadow: `0 0 20px rgba(123, 47, 247, 0.2)`, // Added the Glow
                 }}
               >
-                <span style={{ fontSize: "1.2rem" }}>👋</span>
+                <span style={{ fontSize: "1.5rem" }}>👋</span>
                 <p
                   style={{
                     margin: 0,
                     color: COLORS.textPrimary,
                     fontSize: "0.95rem",
                     fontWeight: 500,
+                    textAlign: "left",
                   }}
                 >
-                  You're already on the list, explorer! We'll reach out soon.
+                  You're already on the list, explorer! <br />
+                  <span
+                    style={{ color: COLORS.textSubtle, fontSize: "0.85rem" }}
+                  >
+                    We'll reach out as soon as a match is found.
+                  </span>
                 </p>
               </div>
+            )}
+
+            {/* Standard Error Message */}
+            {error && error !== "ALREADY_JOINED" && (
+              <p
+                style={{
+                  color: COLORS.coral,
+                  marginTop: "12px",
+                  fontSize: "0.9rem",
+                }}
+              >
+                {error}
+              </p>
             )}
 
             <p
@@ -206,7 +193,8 @@ export default function WaitlistSection({ isVisible }) {
                 color: COLORS.textSubtle,
               }}
             >
-              No spam. Just adventure updates. Pinky promise 🤙
+              {" "}
+              No spam. Just adventure updates. Pinky promise 🤙{" "}
             </p>
           </>
         ) : (
@@ -218,7 +206,6 @@ export default function WaitlistSection({ isVisible }) {
                 fontSize: "2.5rem",
                 fontWeight: 800,
                 marginBottom: "12px",
-                letterSpacing: "-1px",
                 background: COLORS.gradientMintViolet,
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
@@ -235,8 +222,7 @@ export default function WaitlistSection({ isVisible }) {
             >
               You're{" "}
               <span style={{ color: COLORS.coral, fontWeight: 700 }}>
-                {" "}
-                #{waitlistPos}{" "}
+                #{waitlistPos}
               </span>{" "}
               on the waitlist
             </p>
@@ -247,7 +233,8 @@ export default function WaitlistSection({ isVisible }) {
                 marginBottom: "32px",
               }}
             >
-              Share with friends to skip ahead 👇
+              {" "}
+              Share with friends to skip ahead 👇{" "}
             </p>
             <div
               className="glass-card"
@@ -267,7 +254,8 @@ export default function WaitlistSection({ isVisible }) {
                   marginBottom: "16px",
                 }}
               >
-                🌍 I just joined ZussGo — find your travel match!
+                {" "}
+                🌍 I just joined ZussGo — find your travel match!{" "}
               </p>
               <ButtonSecondary
                 onClick={() =>

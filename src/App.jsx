@@ -17,12 +17,6 @@ import {
 function App() {
   const scrollY = useScrollPosition();
   const isVisible = useSectionVisibility(0.15);
-  useEffect(() => {
-    // Trigger this the moment the tab opens
-    fetch("https://zussgo-backend.onrender.com/api/admin/waitlist").catch(
-      () => {},
-    );
-  }, []);
   return (
     <div
       style={{
