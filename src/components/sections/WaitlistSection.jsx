@@ -1,20 +1,37 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { COLORS, FONTS } from "../../constants";
 import { AnimatedSection, ButtonPrimary, ButtonSecondary } from "../ui";
-import { isValidEmail, shareOrCopy } from "../../utils";
+import { isValidEmail, shareOrCopy, scrollToSection } from "../../utils";
 import confetti from "canvas-confetti";
 
-export default function WaitlistSection({ isVisible }) {
+export default function WaitlistSection({ isVisible, globalSelectedDest }) {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [waitlistPos, setWaitlistPos] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async () => {
+  // 1. AUTO-CLEAR: Remove the error message as soon as they pick a destination
+  // This is wrapped in useEffect to prevent infinite render loops.
+  useEffect(() => {
+    if (globalSelectedDest && error === "SELECT_DESTINATION") {
+      setError("");
+    }
+  }, [globalSelectedDest, error]);
+
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
     setError("");
+
+    // Validation 1: Email check
     if (!isValidEmail(email)) {
       setError("Please enter a valid email address");
+      return;
+    }
+
+    // Validation 2: Destination check
+    if (!globalSelectedDest) {
+      setError("SELECT_DESTINATION");
       return;
     }
 
@@ -26,7 +43,10 @@ export default function WaitlistSection({ isVisible }) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.toLowerCase() }),
+          body: JSON.stringify({
+            email: email.toLowerCase(),
+            destination: globalSelectedDest,
+          }),
         },
       );
 
@@ -42,7 +62,6 @@ export default function WaitlistSection({ isVisible }) {
           colors: ["#7B2FF7", "#F15A24", "#ffffff"],
         });
       } else if (response.status === 409) {
-        // This triggers the specialized UI block below
         setError("ALREADY_JOINED");
       } else {
         setError(data.message || "Something went wrong.");
@@ -81,62 +100,106 @@ export default function WaitlistSection({ isVisible }) {
                   WebkitTextFillColor: "transparent",
                 }}
               >
-                {" "}
-                alone.{" "}
+                alone.
               </span>
             </h2>
-
-            <p
-              style={{
-                color: COLORS.textMuted,
-                marginBottom: "36px",
-                fontSize: "1.05rem",
-                lineHeight: 1.7,
-              }}
-            >
-              Join the waitlist. Be the first to find your travel match.
-            </p>
 
             <div
               style={{
                 display: "flex",
+                flexDirection: "column",
                 gap: "12px",
-                justifyContent: "center",
-                flexWrap: "wrap",
                 alignItems: "center",
+                marginTop: "40px",
               }}
             >
-              <input
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                disabled={isLoading}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              {/* STATUS AREA: Only shows ONE message/button at a time */}
+              {error === "SELECT_DESTINATION" ? (
+                <div
+                  style={{
+                    marginBottom: "20px",
+                    animation: "fadeIn 0.3s ease",
+                  }}
+                >
+                  <p
+                    style={{
+                      color: COLORS.coral,
+                      fontWeight: "bold",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    ⚠️ Please pick a destination first!
+                  </p>
+                  <ButtonSecondary
+                    onClick={() => scrollToSection("quiz")}
+                    style={{
+                      fontSize: "0.85rem",
+                      padding: "10px 20px",
+                      border: `1px solid ${COLORS.coral}`,
+                      color: COLORS.coral,
+                    }}
+                  >
+                    🗺️ Select a Destination
+                  </ButtonSecondary>
+                </div>
+              ) : globalSelectedDest ? (
+                <p
+                  style={{
+                    color: COLORS.mint,
+                    fontSize: "0.95rem",
+                    marginBottom: "15px",
+                    fontWeight: 600,
+                  }}
+                >
+                  Ready for your trip to {globalSelectedDest}? ✈️
+                </p>
+              ) : (
+                <p
+                  style={{
+                    color: COLORS.textMuted,
+                    marginBottom: "36px",
+                    fontSize: "1.05rem",
+                  }}
+                >
+                  Join the waitlist. Be the first to find your travel match.
+                </p>
+              )}
+
+              {/* INPUT FORM */}
+              <div
                 style={{
-                  background: COLORS.bgInput,
-                  border: `2px solid ${error && error !== "ALREADY_JOINED" ? COLORS.coral : "rgba(255,255,255,0.1)"}`,
-                  borderRadius: "16px",
-                  padding: "18px 24px",
-                  color: COLORS.textPrimary,
-                  fontSize: "1rem",
-                  fontFamily: FONTS.body,
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "center",
+                  flexWrap: "wrap",
                   width: "100%",
-                  maxWidth: "400px",
-                  outline: "none",
-                  transition: "all 0.3s ease",
                 }}
-              />
-              <ButtonPrimary
-                onClick={handleSubmit}
-                disabled={isLoading}
-                style={{ padding: "18px 36px" }}
               >
-                {isLoading ? "Joining..." : "Join the Waitlist 🚀"}
-              </ButtonPrimary>
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                  style={{
+                    background: COLORS.bgInput,
+                    border: `2px solid ${error && !["ALREADY_JOINED", "SELECT_DESTINATION"].includes(error) ? COLORS.coral : "rgba(255,255,255,0.1)"}`,
+                    borderRadius: "16px",
+                    padding: "18px 24px",
+                    color: COLORS.textPrimary,
+                    width: "100%",
+                    maxWidth: "400px",
+                    outline: "none",
+                    transition: "all 0.3s ease",
+                  }}
+                />
+                <ButtonPrimary onClick={handleSubmit} disabled={isLoading}>
+                  {isLoading ? "Joining..." : "Join the Waitlist 🚀"}
+                </ButtonPrimary>
+              </div>
             </div>
 
-            {/* RESTORED: Glowing Already Joined UI */}
+            {/* ERROR MESSAGES */}
             {error === "ALREADY_JOINED" && (
               <div
                 style={{
@@ -145,46 +208,28 @@ export default function WaitlistSection({ isVisible }) {
                   background: "rgba(123, 47, 247, 0.08)",
                   border: `1px solid ${COLORS.violet}`,
                   borderRadius: "16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "15px",
-                  justifyContent: "center",
-                  animation: "fadeIn 0.6s ease",
-                  boxShadow: `0 0 20px rgba(123, 47, 247, 0.2)`, // Added the Glow
+                  boxShadow: `0 0 20px rgba(123, 47, 247, 0.2)`,
                 }}
               >
-                <span style={{ fontSize: "1.5rem" }}>👋</span>
-                <p
-                  style={{
-                    margin: 0,
-                    color: COLORS.textPrimary,
-                    fontSize: "0.95rem",
-                    fontWeight: 500,
-                    textAlign: "left",
-                  }}
-                >
-                  You're already on the list, explorer! <br />
-                  <span
-                    style={{ color: COLORS.textSubtle, fontSize: "0.85rem" }}
-                  >
-                    We'll reach out as soon as a match is found.
-                  </span>
+                <p style={{ margin: 0, color: COLORS.textPrimary }}>
+                  You're already on the list, explorer! We'll reach out soon.
                 </p>
               </div>
             )}
 
-            {/* Standard Error Message */}
-            {error && error !== "ALREADY_JOINED" && (
-              <p
-                style={{
-                  color: COLORS.coral,
-                  marginTop: "12px",
-                  fontSize: "0.9rem",
-                }}
-              >
-                {error}
-              </p>
-            )}
+            {/* Standard Error (Excludes the SELECT_DESTINATION text from appearing at bottom) */}
+            {error &&
+              !["ALREADY_JOINED", "SELECT_DESTINATION"].includes(error) && (
+                <p
+                  style={{
+                    color: COLORS.coral,
+                    marginTop: "12px",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {error}
+                </p>
+              )}
 
             <p
               style={{
@@ -193,8 +238,7 @@ export default function WaitlistSection({ isVisible }) {
                 color: COLORS.textSubtle,
               }}
             >
-              {" "}
-              No spam. Just adventure updates. Pinky promise 🤙{" "}
+              No spam. Just adventure updates. Pinky promise 🤙
             </p>
           </>
         ) : (
@@ -205,71 +249,17 @@ export default function WaitlistSection({ isVisible }) {
                 fontFamily: FONTS.display,
                 fontSize: "2.5rem",
                 fontWeight: 800,
-                marginBottom: "12px",
-                background: COLORS.gradientMintViolet,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
               }}
             >
               You're in!
             </h2>
-            <p
-              style={{
-                fontSize: "1.1rem",
-                color: COLORS.textSecondary,
-                marginBottom: "8px",
-              }}
-            >
+            <p style={{ fontSize: "1.1rem", marginBottom: "8px" }}>
               You're{" "}
               <span style={{ color: COLORS.coral, fontWeight: 700 }}>
                 #{waitlistPos}
               </span>{" "}
               on the waitlist
             </p>
-            <p
-              style={{
-                fontSize: "0.95rem",
-                color: COLORS.textSubtle,
-                marginBottom: "32px",
-              }}
-            >
-              {" "}
-              Share with friends to skip ahead 👇{" "}
-            </p>
-            <div
-              className="glass-card"
-              style={{
-                padding: "24px",
-                maxWidth: "400px",
-                margin: "0 auto",
-                background:
-                  "linear-gradient(135deg, rgba(255,107,107,0.08), rgba(123,47,247,0.08))",
-              }}
-            >
-              <p
-                style={{
-                  fontFamily: FONTS.display,
-                  fontWeight: 600,
-                  fontSize: "1rem",
-                  marginBottom: "16px",
-                }}
-              >
-                {" "}
-                🌍 I just joined ZussGo — find your travel match!{" "}
-              </p>
-              <ButtonSecondary
-                onClick={() =>
-                  shareOrCopy({
-                    title: "ZussGo",
-                    text: "Find your travel match!",
-                    url: window.location.href,
-                  })
-                }
-                style={{ padding: "12px 28px", fontSize: "0.85rem" }}
-              >
-                Share & Skip Ahead
-              </ButtonSecondary>
-            </div>
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import { useScrollPosition, useSectionVisibility } from "./hooks";
 import { Navbar, Footer } from "./components/layout";
 import { GrainOverlay, FloatingOrbs } from "./components/ui";
 import AdminDashboard from "./components/sections/AdminDashboard";
+import React, { useState } from "react";
 import {
   HeroSection,
   ProblemSection,
@@ -18,6 +19,7 @@ import {
 function App() {
   const scrollY = useScrollPosition();
   const isVisible = useSectionVisibility(0.15);
+  const [globalSelectedDest, setGlobalSelectedDest] = useState("");
 
   return (
     <Router>
@@ -44,11 +46,17 @@ function App() {
                 <HeroSection />
                 <ProblemSection isVisible={isVisible("problem")} />
                 <HowItWorksSection isVisible={isVisible("how-it-works")} />
-                <DestinationQuizSection isVisible={isVisible("quiz")} />
+                <DestinationQuizSection
+                  isVisible={true}
+                  setGlobalSelectedDest={setGlobalSelectedDest}
+                />
                 <TestimonialsSection isVisible={isVisible("testimonials")} />
                 <SoloTravelStatsSection isVisible={isVisible("why-solo")} />
                 <SafetySection isVisible={isVisible("safety")} />
-                <WaitlistSection isVisible={isVisible("waitlist")} />
+                <WaitlistSection
+                  isVisible={isVisible("waitlist")}
+                  globalSelectedDest={globalSelectedDest}
+                />
                 <Footer />
               </>
             }

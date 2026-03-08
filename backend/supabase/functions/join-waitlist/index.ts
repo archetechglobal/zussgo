@@ -10,17 +10,22 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // 1. Handle CORS Preflight correctly - Fixes the "Connection Error"
   if (req.method === "OPTIONS") {
-    return new Response("ok", { status: 200, headers: corsHeaders });
+    return new Response("ok", {
+      status: 200,
+      headers: corsHeaders,
+    });
   }
 
   try {
-    const { email } = await req.json();
+    const { email, destination } = await req.json();
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email)) {
-      throw new Error("Please provide a valid email address.");
-    }
+    // 2. Safety Fallback: Ensure destination is never empty
+    const finalDest =
+      destination && destination.trim() !== ""
+        ? destination
+        : "Global Explorer";
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -28,10 +33,13 @@ serve(async (req) => {
     );
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-    // 1. Insert the email
-    const { error: dbError } = await supabase
-      .from("waitlist")
-      .insert([{ email: email.toLowerCase() }]);
+    // 3. Insert into the Database
+    const { error: dbError } = await supabase.from("waitlist").insert([
+      {
+        email: email.toLowerCase(),
+        destination: finalDest,
+      },
+    ]);
 
     if (dbError) {
       if (dbError.code === "23505") {
@@ -46,22 +54,21 @@ serve(async (req) => {
       throw dbError;
     }
 
-    // 2. GET COUNT - Updated logic to be more robust
+    // 4. Get the current count for the rank
     const { count, error: countError } = await supabase
       .from("waitlist")
-      .select("*", { count: "exact" }); // Removed 'head: true' to ensure fresh count
+      .select("*", { count: "exact" });
 
     if (countError) console.error("Count Error:", countError);
 
-    // If count is null/0, we still want to show at least 412 for the first user
     const totalCount = count ?? 0;
     const displayRank = totalCount + 411;
 
-    // 3. Send the Email
-    resend.emails.send({
+    // 5. Send the Email (Your Original UI preserved)
+    await resend.emails.send({
       from: "ZussGo <hello@zussgo.com>",
       to: email,
-      subject: "You're in! Your ZussGo boarding pass is here 🎫",
+      subject: `You're in! Your ZussGo boarding pass for ${finalDest} is here 🎫`,
       html: `
         <div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f9f9f9; padding: 40px 10px;">
           <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 24px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
@@ -74,13 +81,13 @@ serve(async (req) => {
             <div style="padding: 40px 30px; text-align: center;">
               <p style="font-size: 18px; color: #1a1a1a; font-weight: 500; margin-bottom: 8px;">Main character energy only. ✨</p>
               <p style="font-size: 15px; color: #64748b; line-height: 1.6; margin-top: 0;">
-                You're officially off the waitlist and into the inner circle. We're building the future of social travel, and honestly? It wouldn't be the same without you.
+                You're officially off the waitlist and into the inner circle for <strong>${finalDest}</strong>. We're building the future of social travel, and honestly? It wouldn't be the same without you.
               </p>
 
               <div style="margin: 30px 0; border: 2px dashed #e2e8f0; border-radius: 16px; padding: 25px; position: relative;">
                 <p style="margin: 0; font-size: 13px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;">Global Priority Rank</p>
                 <h2 style="margin: 10px 0; font-size: 48px; color: #7B2FF7; letter-spacing: -2px;">#${displayRank}</h2>
-                <div style="display: inline-block; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 12px; color: #475569; font-weight: 600;">GATE: ZUSS-GO-LOBBY</div>
+                <div style="display: inline-block; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 12px; color: #475569; font-weight: 600;">GATE: ZUSS-GO-LOBBY | DEST: ${finalDest.toUpperCase()}</div>
               </div>
 
               <p style="font-size: 14px; color: #64748b;">
